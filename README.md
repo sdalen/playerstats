@@ -26,7 +26,7 @@ så GitHub Pages-versjonen går via en Cloudflare Worker (`worker/`).
    npx wrangler deploy
    ```
    Noter URL-en, f.eks. `https://playerstats-proxy.<konto>.workers.dev`.
-2. I GitHub-repoet: *Settings → Secrets and variables → Actions → Variables* → legg til `API_BASE` med worker-URL-en.
+2. Sett worker-URL-en i `.env.production` (eller som Actions-variabel `API_BASE`, som overstyrer).
 3. *Settings → Pages* → *Source: GitHub Actions*.
 4. Push til `main` (eller kjør workflowen manuelt) for å bygge og deploye.
 
