@@ -80,6 +80,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [onlyActive, setOnlyActive] = useState(false)
+  const [query, setQuery] = useState('')
 
   async function run(e: FormEvent) {
     e.preventDefault()
@@ -139,7 +140,15 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
 
   const sorted = useMemo(() => {
     const col = COLUMNS.find((c) => c.key === sort.key)!
-    const list = rows.filter((r) => !onlyActive || r.active)
+    const q = query.trim().toLowerCase()
+    // Søk i navn, lag i siste kamp og lag i turneringen
+    const matches = (r: Row) =>
+      !q ||
+      [`${r.player.firstName} ${r.player.lastName}`, teamOf(r), r.player.teamName ?? '']
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
+    const list = rows.filter((r) => (!onlyActive || r.active) && matches(r))
     return list.sort((a, b) => {
       const va = col.value(a)
       const vb = col.value(b)
@@ -151,7 +160,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
       // Likt: flest kamper siden siste mål først
       return (sort.desc ? -cmp : cmp) || b.matchesSince - a.matchesSince
     })
-  }, [rows, onlyActive, sort])
+  }, [rows, onlyActive, query, sort])
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: COLUMNS.find((c) => c.key === key)!.descFirst }))
@@ -201,12 +210,20 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
 
       {rows.length > 0 && (
         <>
-          <div className="mt-3 flex items-center justify-between text-sm">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-slate-500 dark:text-slate-400">
               {rows.length} spillere · {rows.filter((r) => r.active).length} aktive ·{' '}
               {rows.filter((r) => !r.lastGoal && !r.error).length} uten mål
               {rows.some((r) => r.error) && ` · ${rows.filter((r) => r.error).length} feilet`}
+              {sorted.length !== rows.length && ` · viser ${sorted.length}`}
             </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Søk spiller eller klubb…"
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 outline-none focus:border-sky-500 sm:max-w-xs dark:border-slate-700 dark:bg-slate-900"
+            />
             <label className="flex items-center gap-1.5">
               <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
               Kun aktive
