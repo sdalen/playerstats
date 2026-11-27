@@ -1,0 +1,6 @@
+name = "playerstats-proxy"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://sdalen.github.io,http://localhost:5173,http://localhost:5174"
