@@ -1,4 +1,4 @@
-// Alle spillere i en årgang (funnet via en turnering), sortert på lengst siden siste mål.
+// Siste scorede mål for alle spillere i en årgang (funnet via en turnering).
 // Lastes som egen JS-fil (lazy) fra App.
 import { useMemo, useState, type FormEvent } from 'react'
 import {
@@ -171,7 +171,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         onClick={() => setOpen(true)}
         className="mt-3 rounded-lg border border-dashed border-slate-400 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-900"
       >
-        Lengst siden mål – hele årgangen
+        Siste scorede mål for årgangen
       </button>
     )
   }
@@ -179,7 +179,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
   return (
     <section className="relative left-1/2 mt-4 w-[calc(100vw-2rem)] max-w-[1400px] -translate-x-1/2 rounded-xl border border-dashed border-slate-400 p-4 dark:border-slate-600">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Lengst siden siste mål – hele årgangen</h2>
+        <h2 className="font-semibold">Siste scorede mål for årgangen</h2>
         <button onClick={() => setOpen(false)} className="text-sm text-slate-500 hover:underline">
           Lukk
         </button>
