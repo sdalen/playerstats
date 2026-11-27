@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react'
 
-// Lokalt verktøy: lastes kun i dev (npm run dev), og tas ikke med i produksjonsbygget.
-const LastGoalList = import.meta.env.DEV ? lazy(() => import('./LastGoalList')) : null
+// Årgangsliste: egen JS-fil (lazy), så hovedsiden laster raskt.
+const LastGoalList = lazy(() => import('./LastGoalList'))
 import {
   addSummary,
   daysSince,
@@ -164,7 +164,7 @@ export default function App() {
             <li>
               Kopier adressen fra adressefeltet i nettleseren. Den ser omtrent slik ut:
               <code className="mt-1 block break-all rounded bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
-                https://live.hockey.no/player/?seasonId=201071&tournamentId=449633&playerId=1234567&orgId=1011062
+                https://live.hockey.no/player/?seasonId=…&tournamentId=…&playerId=1234567&orgId=…
               </code>
             </li>
             <li>

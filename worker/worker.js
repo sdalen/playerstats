@@ -1,7 +1,7 @@
 // Cloudflare Worker: CORS-proxy for live.hockey.no-API-et (NIF).
 // API-et tillater kun CORS fra https://live.hockey.no, så nettleseren kaller denne workeren i stedet.
 const UPSTREAM = 'https://sf34-terminlister-prod-app.azurewebsites.net/'
-const ALLOWED_PATHS = /^\/(ta\/Tournament\/AllForPerson|ta\/TeamMembers\/\d+|wise\/tournaments\/\d+\/players\/\d+\/matches\/statistics|icehockey\/Player\/\d+)$/
+const ALLOWED_PATHS = /^\/(ta\/Tournament\/AllForPerson|ta\/TeamMembers\/\d+|wise\/tournaments\/\d+\/players\/statistics|wise\/tournaments\/\d+\/players\/\d+\/matches\/statistics|icehockey\/Player\/\d+)$/
 const CACHE_SECONDS = 300
 
 function corsHeaders(origin, env) {

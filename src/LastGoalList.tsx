@@ -1,5 +1,5 @@
-// Lokalt verktøy: alle spillere i en turnering, sortert på lengst siden siste mål.
-// Vises bare i dev (npm run dev) og tas ikke med i produksjonsbygget.
+// Alle spillere i en årgang (funnet via en turnering), sortert på lengst siden siste mål.
+// Lastes som egen JS-fil (lazy) fra App.
 import { useMemo, useState, type FormEvent } from 'react'
 import {
   daysSince,
@@ -171,7 +171,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         onClick={() => setOpen(true)}
         className="mt-3 rounded-lg border border-dashed border-slate-400 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-900"
       >
-        Lengst siden mål i turnering (lokal)
+        Lengst siden mål – hele årgangen
       </button>
     )
   }
@@ -179,7 +179,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
   return (
     <section className="relative left-1/2 mt-4 w-[calc(100vw-2rem)] max-w-[1400px] -translate-x-1/2 rounded-xl border border-dashed border-slate-400 p-4 dark:border-slate-600">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Lengst siden siste mål – alle spillere i en turnering</h2>
+        <h2 className="font-semibold">Lengst siden siste mål – hele årgangen</h2>
         <button onClick={() => setOpen(false)} className="text-sm text-slate-500 hover:underline">
           Lukk
         </button>
@@ -188,7 +188,8 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         Lim inn en statistikklenke fra live.hockey.no for en turnering i årgangen du vil se, f.eks.
         https://live.hockey.no/statistics/players?seasonId=201059&amp;tournamentId=441144 (eller bare tournamentId).
         Turneringen brukes til å finne spillerne i årgangen. Deretter hentes alle kampene til hver spiller, i alle
-        turneringer frem til i dag (data fra august 2023), og alle tallene i tabellen regnes ut fra dem. Aktiv = spilt
+        turneringer frem til i dag, og alle tallene i tabellen regnes ut fra dem. «Aldri» betyr ingen mål i kampene som
+        finnes i dataene. Aktiv = spilt
         kamp siden {formatDate(seasonStart())}. Klikk på en kolonneoverskrift for å sortere, og hold musen over en dato
         for å se turneringen.
       </p>
