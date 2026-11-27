@@ -17,6 +17,7 @@ import {
   playerUrl,
   plusMinus,
   seasonLabel,
+  seasonOf,
   type Match,
   type PlayerData,
   type Summary,
@@ -206,6 +207,16 @@ export default function App() {
           <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
             {error}
           </p>
+        )}
+
+        {data && data.failed.length > 0 && (
+          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            NIF svarte ikke for {data.failed.length === 1 ? 'denne turneringen' : 'disse turneringene'}, så tallene kan
+            mangle kamper: {data.failed.map((t) => `${t.tournamentName} (${seasonLabel(seasonOf(t.startDate))})`).join(', ')}.{' '}
+            <button onClick={() => void load(data.playerId)} className="font-medium underline">
+              Prøv igjen
+            </button>
+          </div>
         )}
 
         {data && data.tournaments.length > 0 && (

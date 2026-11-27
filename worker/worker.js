@@ -30,11 +30,16 @@ export default {
       const upstream = await fetch(UPSTREAM + url.pathname.slice(1) + url.search, {
         headers: { Accept: 'application/json' },
       })
-      res = new Response(upstream.body, upstream)
+      const body = await upstream.text()
+      res = new Response(body, upstream)
       res.headers.delete('Access-Control-Allow-Origin')
-      if (upstream.ok) {
+      // API-et svarer 200 med tomme data + advarsel når NIF får timeout – slike svar skal ikke caches
+      const upstreamError = /Unexpected error|timeout/i.test(body)
+      if (upstream.ok && !upstreamError) {
         res.headers.set('Cache-Control', `public, max-age=${CACHE_SECONDS}`)
         ctx.waitUntil(cache.put(cacheKey, res.clone()))
+      } else {
+        res.headers.set('Cache-Control', 'no-store')
       }
     }
     const out = new Response(res.body, res)

@@ -84,6 +84,8 @@ export interface PlayerData {
   info: PlayerInfo
   orgId?: number
   tournaments: TournamentStats[]
+  /** Turneringer der API-et ikke klarte å hente data (timeout hos NIF) */
+  failed: Tournament[]
 }
 
 // I dev går kall via Vite-proxyen (/api). I produksjon settes VITE_API_BASE til Cloudflare Worker-URL-en.
@@ -161,17 +163,40 @@ export function parsePlayerInput(input: string): { playerId?: string; orgId?: st
 export const seasonOf = (startDate: string) => Number(startDate.slice(0, 4))
 export const seasonLabel = (season: number) => `${season}/${String((season + 1) % 100).padStart(2, '0')}`
 
+type StatsResponse = {
+  tournamentSummary?: Partial<Summary>
+  matches?: Match[]
+  totalMatchesWithWisehockeyData?: number
+  warnings?: unknown[]
+}
+
+/** API-et svarer 200 med tomme data og en advarsel når NIF får timeout – og cacher det svaret. */
+const isUpstreamError = (res: StatsResponse) =>
+  (res?.warnings ?? []).some((w) => /unexpected error|timeout/i.test(String(w)))
+
+/** Henter turneringsstatistikk; ved NIF-feil prøves det på nytt med cache-buster for å omgå cachet feilsvar. */
+async function fetchTournamentStats(tournamentId: number, playerId: string) {
+  const path = `wise/tournaments/${tournamentId}/players/${playerId}/matches/statistics`
+  let res = await get<StatsResponse>(path)
+  for (let attempt = 1; attempt <= 2 && isUpstreamError(res); attempt++) {
+    cache.delete(path)
+    res = await get<StatsResponse>(`${path}?_=${Date.now()}`)
+  }
+  if (isUpstreamError(res)) {
+    cache.delete(path)
+    throw new Error('NIF timeout')
+  }
+  return res
+}
+
 export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise<PlayerData> {
   const all = await get<Tournament[]>(`ta/Tournament/AllForPerson?personId=${playerId}`)
+  const failed: Tournament[] = []
 
   const results = await Promise.all(
     (all ?? []).map(async (t) => {
       try {
-        const res = await get<{
-          tournamentSummary?: Partial<Summary>
-          matches?: Match[]
-          totalMatchesWithWisehockeyData?: number
-        }>(`wise/tournaments/${t.tournamentId}/players/${playerId}/matches/statistics`)
+        const res = await fetchTournamentStats(t.tournamentId, playerId)
         const summary = toSummary(res?.tournamentSummary)
         if (summary.gamesPlayed === 0) return null
         const age = ageClass(t.tournamentName)
@@ -193,6 +218,7 @@ export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise
         }))
         return { tournament: t, season: seasonOf(t.startDate), summary, matches, tracked } satisfies TournamentStats
       } catch {
+        failed.push(t)
         return null
       }
     }),
@@ -215,7 +241,7 @@ export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise
     }
   }
 
-  return { playerId, info, orgId, tournaments }
+  return { playerId, info, orgId, tournaments, failed }
 }
 
 const matchKey = (m: Match) => `${m.matchDate}|${String(m.matchStartTime ?? 0).padStart(4, '0')}`
