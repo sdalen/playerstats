@@ -168,7 +168,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
   }
 
   return (
-    <section className="mt-4 rounded-xl border border-dashed border-slate-400 p-4 dark:border-slate-600">
+    <section className="relative left-1/2 mt-4 w-[calc(100vw-2rem)] max-w-[1400px] -translate-x-1/2 rounded-xl border border-dashed border-slate-400 p-4 dark:border-slate-600">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">Lengst siden siste mål – alle spillere i en turnering</h2>
         <button onClick={() => setOpen(false)} className="text-sm text-slate-500 hover:underline">
@@ -239,7 +239,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
                   <tr key={r.player.personId} className="border-t border-slate-100 dark:border-slate-800">
                     <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{k + 1}</td>
                     <td className="px-2 py-1.5 text-center text-emerald-600">{r.active ? '✓' : ''}</td>
-                    <td className="px-2 py-1.5">
+                    <td className="whitespace-nowrap px-2 py-1.5">
                       <button
                         onClick={() => onSelectPlayer(String(r.player.personId))}
                         className="text-left text-sky-700 hover:underline dark:text-sky-400"
@@ -247,7 +247,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
                         {r.player.firstName} {r.player.lastName}
                       </button>
                     </td>
-                    <td className="px-2 py-1.5 text-slate-500 dark:text-slate-400">{teamOf(r)}</td>
+                    <td className="max-w-56 px-2 py-1.5 text-slate-500 dark:text-slate-400">{teamOf(r)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.gp}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.goals}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.assists}</td>
