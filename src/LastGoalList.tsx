@@ -31,6 +31,45 @@ const seasonStart = () => {
   return `${d.getMonth() >= 4 ? d.getFullYear() : d.getFullYear() - 1}-05-01`
 }
 
+type SortKey =
+  | 'active'
+  | 'name'
+  | 'team'
+  | 'gp'
+  | 'goals'
+  | 'assists'
+  | 'pts'
+  | 'pim'
+  | 'lastGoal'
+  | 'days'
+  | 'since'
+  | 'lastMatch'
+
+const n = (v?: number) => v ?? 0
+
+/** Kolonner med sorteringsverdi. «Aldri scoret» regnes som lengst siden (Infinity). */
+const COLUMNS: {
+  key: SortKey
+  label: string
+  title?: string
+  align?: 'right' | 'center'
+  descFirst: boolean
+  value: (r: Row) => number | string | null
+}[] = [
+  { key: 'active', label: 'Aktiv', align: 'center', descFirst: true, value: (r) => (r.active ? 1 : 0) },
+  { key: 'name', label: 'Spiller', descFirst: false, value: (r) => `${r.player.firstName} ${r.player.lastName}` },
+  { key: 'team', label: 'Lag', descFirst: false, value: (r) => r.player.teamName ?? '' },
+  { key: 'gp', label: 'K', title: 'Kamper i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.gamesPlayed) },
+  { key: 'goals', label: 'M', title: 'Mål i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.goalsScored) },
+  { key: 'assists', label: 'A', title: 'Assist i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.assists) },
+  { key: 'pts', label: 'P', title: 'Poeng i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.pts) },
+  { key: 'pim', label: 'UM', title: 'Utvisningsminutter i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.pim) },
+  { key: 'lastGoal', label: 'Siste mål', title: 'Siste mål i alle turneringer', descFirst: false, value: (r) => (r.error ? null : r.lastGoal?.matchDate ?? '') },
+  { key: 'days', label: 'Dager', title: 'Dager siden siste mål', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.lastGoal ? daysSince(r.lastGoal.matchDate) : Infinity) },
+  { key: 'since', label: 'Kamper siden', title: 'Kamper spilt etter siste mål', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.matchesSince) },
+  { key: 'lastMatch', label: 'Siste kamp', title: 'Siste kamp i alle turneringer', descFirst: true, value: (r) => r.lastMatch?.matchDate ?? null },
+]
+
 export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (playerId: string) => void }) {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
@@ -83,16 +122,26 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
     }
   }
 
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'days', desc: true })
+
   const sorted = useMemo(() => {
+    const col = COLUMNS.find((c) => c.key === sort.key)!
     const list = rows.filter((r) => !onlyActive || r.active)
-    // Uten mål øverst (flest kamper først), deretter eldste siste mål
     return list.sort((a, b) => {
-      if (!a.lastGoal && !b.lastGoal) return b.matchesSince - a.matchesSince
-      if (!a.lastGoal) return -1
-      if (!b.lastGoal) return 1
-      return a.lastGoal.matchDate.localeCompare(b.lastGoal.matchDate)
+      const va = col.value(a)
+      const vb = col.value(b)
+      // Manglende verdier alltid nederst
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
+      const cmp = typeof va === 'string' ? va.localeCompare(vb as string, 'nb') : va - (vb as number)
+      // Likt: flest kamper siden siste mål først
+      return (sort.desc ? -cmp : cmp) || b.matchesSince - a.matchesSince
     })
-  }, [rows, onlyActive])
+  }, [rows, onlyActive, sort])
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: COLUMNS.find((c) => c.key === key)!.descFirst }))
 
   if (!open) {
     return (
@@ -117,7 +166,8 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         Lim inn en statistikklenke fra live.hockey.no, f.eks.
         https://live.hockey.no/statistics/players?seasonId=201059&amp;tournamentId=441144, eller bare tournamentId. Siste
         mål og siste kamp regnes på tvers av alle spillerens turneringer frem til i dag (data fra august 2023). Aktiv =
-        spilt kamp siden {formatDate(seasonStart())}.
+        spilt kamp siden {formatDate(seasonStart())}. K, M, A, P og UM gjelder bare den valgte turneringen. Klikk på en
+        kolonneoverskrift for å sortere.
       </p>
       <form onSubmit={run} className="mt-3 flex gap-2">
         <input
@@ -154,15 +204,21 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-800 dark:text-slate-400">
                   <th className="px-2 py-2 text-right font-medium">#</th>
-                  <th className="px-2 py-2 text-center font-medium">Aktiv</th>
-                  <th className="px-2 py-2 font-medium">Spiller</th>
-                  <th className="px-2 py-2 font-medium">Lag</th>
-                  <th className="px-2 py-2 font-medium">Siste mål</th>
-                  <th className="px-2 py-2 text-right font-medium">Dager</th>
-                  <th className="px-2 py-2 text-right font-medium" title="Kamper spilt etter siste mål">
-                    Kamper siden
-                  </th>
-                  <th className="px-2 py-2 font-medium">Siste kamp</th>
+                  {COLUMNS.map((c) => (
+                    <th
+                      key={c.key}
+                      title={c.title}
+                      className={`whitespace-nowrap px-2 py-2 font-medium ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''}`}
+                    >
+                      <button
+                        onClick={() => toggleSort(c.key)}
+                        className={`hover:text-slate-900 dark:hover:text-white ${sort.key === c.key ? 'text-slate-900 dark:text-white' : ''}`}
+                      >
+                        {c.label}
+                        {sort.key === c.key ? (sort.desc ? ' ↓' : ' ↑') : ''}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -179,6 +235,11 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
                       </button>
                     </td>
                     <td className="px-2 py-1.5 text-slate-500 dark:text-slate-400">{r.player.teamName}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{n(r.player.gamesPlayed)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{n(r.player.goalsScored)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{n(r.player.assists)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{n(r.player.pts)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{n(r.player.pim)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">
                       {r.error ? (
                         <span className="text-red-500">feil</span>

@@ -262,6 +262,9 @@ export interface TournamentPlayer {
   teamName?: string
   gamesPlayed?: number
   goalsScored?: number
+  assists?: number
+  pts?: number // poeng
+  pim?: number
 }
 
 /** Alle spillere i en turnering (statistikklisten på live.hockey.no). */
