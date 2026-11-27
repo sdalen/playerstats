@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react'
 
-// Årgangsliste: egen JS-fil (lazy), så hovedsiden laster raskt.
-const LastGoalList = lazy(() => import('./LastGoalList'))
+// Årgangsliste: kun lokalt (npm run dev). Gjør ett API-kall per spiller, så den er ikke med i produksjonsbygget.
+const LastGoalList = import.meta.env.DEV ? lazy(() => import('./LastGoalList')) : null
 import {
   addSummary,
   daysSince,

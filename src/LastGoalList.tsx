@@ -1,5 +1,5 @@
 // Siste scorede mål for alle spillere i en årgang (funnet via en turnering).
-// Lastes som egen JS-fil (lazy) fra App.
+// Kun lokalt (npm run dev): ett API-kall per spiller er for tungt for den publiserte siden.
 import { useMemo, useState, type FormEvent } from 'react'
 import {
   daysSince,
@@ -10,6 +10,41 @@ import {
   type Match,
   type TournamentPlayer,
 } from './hockey'
+
+// Skånsom mot API-et: få samtidige kall, og kamper lagres i nettleseren (localStorage).
+const CONCURRENCY = 2
+const STORE_KEY = (id: number) => `playerstats:matches:${id}`
+const STORE_MAX_AGE_MS = 12 * 60 * 60 * 1000 // 12 timer – nye kamper kommer sjelden oftere
+
+/** Kampene til en spiller, fra nettleserens lager hvis ferske nok, ellers fra API-et. */
+async function cachedPlayerMatches(playerId: number): Promise<Match[]> {
+  try {
+    const raw = localStorage.getItem(STORE_KEY(playerId))
+    if (raw) {
+      const { at, matches } = JSON.parse(raw) as { at: number; matches: Match[] }
+      if (Date.now() - at < STORE_MAX_AGE_MS) return matches
+    }
+  } catch {
+    // ignorer – hent fra API-et
+  }
+  const ms = await fetchPlayerMatches(playerId)
+  // Lagre bare feltene listen bruker, så det får plass i localStorage
+  const slim = ms.map(({ matchDate, goalsScored, assists, pts, pim, tournamentName, teamName }) => ({
+    matchDate,
+    goalsScored,
+    assists,
+    pts,
+    pim,
+    tournamentName,
+    teamName,
+  })) as Match[]
+  try {
+    localStorage.setItem(STORE_KEY(playerId), JSON.stringify({ at: Date.now(), matches: slim }))
+  } catch {
+    // fullt eller blokkert lager – greit, vi har dataene for denne kjøringen
+  }
+  return slim
+}
 
 interface Row {
   player: TournamentPlayer
@@ -102,7 +137,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         while (i < players.length) {
           const player = players[i++]
           try {
-            const ms = (await fetchPlayerMatches(player.personId)).filter((m) => m.matchDate.slice(0, 10) <= today)
+            const ms = (await cachedPlayerMatches(player.personId)).filter((m) => m.matchDate.slice(0, 10) <= today)
             const gi = ms.findIndex((m) => m.goalsScored > 0)
             result.push({
               player,
@@ -127,7 +162,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
           setProgress({ done: result.length, total: players.length })
         }
       }
-      await Promise.all(Array.from({ length: 6 }, worker))
+      await Promise.all(Array.from({ length: CONCURRENCY }, worker))
       setRows(result)
     } catch (err) {
       setError(`Kunne ikke hente spillere: ${err instanceof Error ? err.message : String(err)}`)
