@@ -5,6 +5,7 @@ import {
   emptySummary,
   fetchPlayer,
   formatDate,
+  formatIceTime,
   formatTime,
   isTracked,
   latestMatches,
@@ -21,22 +22,29 @@ import {
 
 type Col = { key: keyof Summary; label: string; title: string; fmt?: (v: number) => string }
 
-/** Summerer turneringer; +/− og skudd telles bare fra turneringer der de registreres. */
+/** Summerer turneringer; +/−, skudd og istid telles bare fra turneringer der de registreres. */
 function sumStats(ts: TournamentStats[]) {
   const sum = emptySummary()
   const has = {} as Record<keyof Summary, boolean>
+  let iceGames = 0 // kamper i turneringer med istid, for snitt
   for (const t of ts) {
     const part = { ...t.summary }
     for (const k of Object.keys(part) as (keyof Summary)[]) {
       if (isTracked(k, t.tracked)) has[k] = true
       else part[k] = 0
     }
+    if (t.tracked.iceTime) iceGames += t.summary.gamesPlayed
     Object.assign(sum, addSummary(sum, part))
   }
-  return { sum, has }
+  return { sum, has, iceGames }
 }
 
-const show = (c: Col, v: number, tracked: boolean) => (tracked ? (c.fmt ?? String)(v) : '–')
+/** Istid vises som snitt per kamp (games = antall kamper verdien gjelder). */
+const show = (c: Col, v: number, tracked: boolean, games = 1) => {
+  if (!tracked) return '–'
+  if (c.key === 'totalSecondsPlayed') return games > 0 ? formatIceTime(v / games) : '–'
+  return (c.fmt ?? String)(v)
+}
 
 const COLS: Col[] = [
   { key: 'gamesPlayed', label: 'K', title: 'Kamper' },
@@ -46,6 +54,7 @@ const COLS: Col[] = [
   { key: 'points', label: '+/−', title: 'Pluss/minus', fmt: plusMinus },
   { key: 'pim', label: 'UM', title: 'Utvisningsminutter' },
   { key: 'shots', label: 'S', title: 'Skudd' },
+  { key: 'totalSecondsPlayed', label: 'Istid', title: 'Snitt istid per kamp' },
 ]
 
 function readUrlInput() {
@@ -102,7 +111,7 @@ export default function App() {
     () => data?.tournaments.filter((t) => fromSeason === 'all' || t.season === fromSeason) ?? [],
     [data, fromSeason],
   )
-  const { sum: total, has: totalHas } = sumStats(visible)
+  const { sum: total, has: totalHas, iceGames } = sumStats(visible)
   const matches = latestMatches(visible)
   const lastGoal = matches.find((m) => m.goalsScored > 0)
   const lastPoint = matches.find((m) => m.pts > 0)
@@ -120,17 +129,17 @@ export default function App() {
       <div className="mx-auto max-w-4xl px-4 py-8">
         <ul className="mb-4 list-disc space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 pl-7 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
           <li>
-            Dataene sier ingenting om spilletid (istid) per kamp. En kamp telles som spilt når spilleren står oppført i
-            kamptroppen.
+            En kamp telles som spilt når spilleren står oppført i kamptroppen. Utenom turneringer med Wisehockey-sporing
+            sier dataene ingenting om spilletid (istid).
           </li>
           <li>Skudd registreres bare fra U16 og eldre.</li>
           <li>
-            +/− registreres bare i turneringer med Wisehockey-sporing (typisk EHL, U20 Elite og U18 Elite). I andre
-            turneringer er tallet ikke pålitelig og vises ikke.
+            Istid og +/− registreres bare i turneringer med Wisehockey-sporing (typisk EHL, U20 Elite og U18 Elite). I
+            andre turneringer er +/− ikke pålitelig, og begge vises ikke.
           </li>
           <li>
-            «–» betyr at tallet ikke registreres i turneringen. Totalene for skudd og +/− summerer bare turneringene der de
-            finnes.
+            «–» betyr at tallet ikke registreres i turneringen. Totalene for skudd, +/− og istid tar bare med
+            turneringene der de finnes. Istid i totaler og per turnering er snitt per kamp.
           </li>
         </ul>
         <h1 className="text-2xl font-bold">Spillerstatistikk ishockey</h1>
@@ -222,10 +231,10 @@ export default function App() {
               </label>
             </header>
 
-            <section className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-7">
+            <section className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-8">
               {COLS.map((c) => (
                 <div key={c.key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-slate-900">
-                  <div className="text-2xl font-bold tabular-nums">{show(c, total[c.key], !!totalHas[c.key])}</div>
+                  <div className="text-2xl font-bold tabular-nums">{show(c, total[c.key], !!totalHas[c.key], iceGames)}</div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">{c.title}</div>
                 </div>
               ))}
@@ -252,13 +261,13 @@ export default function App() {
                   </thead>
                   <tbody>
                     {bySeason.map(([season, ts]) => {
-                      const { sum, has } = sumStats(ts)
+                      const { sum, has, iceGames } = sumStats(ts)
                       return [
                         <tr key={`s${season}`} className="bg-slate-100 font-semibold dark:bg-slate-800">
                           <td className="px-3 py-1.5">{seasonLabel(season)}</td>
                           {COLS.map((c) => (
                             <td key={c.key} className="px-2 py-1.5 text-right tabular-nums">
-                              {show(c, sum[c.key], !!has[c.key])}
+                              {show(c, sum[c.key], !!has[c.key], iceGames)}
                             </td>
                           ))}
                         </tr>,
@@ -282,7 +291,7 @@ export default function App() {
                               </td>
                               {COLS.map((c) => (
                                 <td key={c.key} className="px-2 py-1.5 text-right tabular-nums">
-                                  {show(c, t.summary[c.key], isTracked(c.key, t.tracked))}
+                                  {show(c, t.summary[c.key], isTracked(c.key, t.tracked), t.summary.gamesPlayed)}
                                 </td>
                               ))}
                             </tr>

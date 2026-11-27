@@ -15,6 +15,7 @@ export interface Summary {
   points: number // PLUSS/MINUS
   pim: number // utvisningsminutter
   shots: number
+  totalSecondsPlayed: number // istid i sekunder (kun med Wisehockey-sporing)
 }
 
 export interface Match {
@@ -37,6 +38,7 @@ export interface Match {
   points: number
   pim: number
   shots: number
+  totalSecondsPlayed: number
   tracked: Tracked
 }
 
@@ -44,6 +46,7 @@ export interface Match {
 export interface Tracked {
   plusMinus: boolean // kun med Wisehockey-sporing (typisk EHL, U20/U18 Elite)
   shots: boolean // fra U16 og eldre
+  iceTime: boolean // kun med Wisehockey-sporing
 }
 
 export interface TournamentStats {
@@ -64,6 +67,7 @@ export const ageClass = (name: string) => {
 export function isTracked(key: keyof Summary, tracked: Tracked) {
   if (key === 'points') return tracked.plusMinus
   if (key === 'shots') return tracked.shots
+  if (key === 'totalSecondsPlayed') return tracked.iceTime
   return true
 }
 
@@ -110,6 +114,7 @@ export const emptySummary = (): Summary => ({
   points: 0,
   pim: 0,
   shots: 0,
+  totalSecondsPlayed: 0,
 })
 
 function toSummary(raw: Partial<Summary> | undefined): Summary {
@@ -121,6 +126,7 @@ function toSummary(raw: Partial<Summary> | undefined): Summary {
     points: n(raw?.points),
     pim: n(raw?.pim),
     shots: n(raw?.shots),
+    totalSecondsPlayed: n(raw?.totalSecondsPlayed),
   }
 }
 
@@ -133,6 +139,7 @@ export function addSummary(a: Summary, b: Summary): Summary {
     points: a.points + b.points,
     pim: a.pim + b.pim,
     shots: a.shots + b.shots,
+    totalSecondsPlayed: a.totalSecondsPlayed + b.totalSecondsPlayed,
   }
 }
 
@@ -171,6 +178,7 @@ export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise
         const tracked: Tracked = {
           plusMinus: n(res?.totalMatchesWithWisehockeyData) > 0,
           shots: age === null || age >= 16,
+          iceTime: n(res?.totalMatchesWithWisehockeyData) > 0,
         }
         const matches = (res?.matches ?? []).map((m) => ({
           ...m,
@@ -181,6 +189,7 @@ export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise
           points: n(m.points),
           pim: n(m.pim),
           shots: n(m.shots),
+          totalSecondsPlayed: n(m.totalSecondsPlayed),
         }))
         return { tournament: t, season: seasonOf(t.startDate), summary, matches, tracked } satisfies TournamentStats
       } catch {
@@ -237,3 +246,9 @@ export const playerUrl = (playerId: string, m: { seasonId?: number; tournamentId
 
 export const matchUrl = (m: Match) =>
   `https://live.hockey.no/match?seasonId=${m.seasonId ?? ''}&tournamentId=${m.tournamentId}&matchId=${m.matchId}&matchDate=${encodeURIComponent(m.matchDate)}`
+
+/** Sekunder → «m:ss». */
+export const formatIceTime = (seconds: number) => {
+  const s = Math.round(seconds)
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
