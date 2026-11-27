@@ -10,7 +10,6 @@ import {
   matchUrl,
   parsePlayerInput,
   playerUrl,
-  plusMinus,
   seasonLabel,
   type Match,
   type PlayerData,
@@ -22,7 +21,6 @@ const COLS: { key: keyof Summary; label: string; title: string; fmt?: (v: number
   { key: 'goalsScored', label: 'M', title: 'Mål' },
   { key: 'assists', label: 'A', title: 'Assist' },
   { key: 'pts', label: 'P', title: 'Poeng' },
-  { key: 'points', label: '+/−', title: 'Pluss/minus', fmt: plusMinus },
   { key: 'pim', label: 'UM', title: 'Utvisningsminutter' },
   { key: 'shots', label: 'S', title: 'Skudd' },
 ]
@@ -190,7 +188,7 @@ export default function App() {
               </label>
             </header>
 
-            <section className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-7">
+            <section className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
               {COLS.map((c) => (
                 <div key={c.key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-slate-900">
                   <div className="text-2xl font-bold tabular-nums">{(c.fmt ?? String)(total[c.key])}</div>
