@@ -26,23 +26,21 @@ type Col = { key: keyof Summary; label: string; title: string; fmt?: (v: number)
 function sumStats(ts: TournamentStats[]) {
   const sum = emptySummary()
   const has = {} as Record<keyof Summary, boolean>
-  let iceGames = 0 // kamper i turneringer med istid, for snitt
   for (const t of ts) {
     const part = { ...t.summary }
     for (const k of Object.keys(part) as (keyof Summary)[]) {
       if (isTracked(k, t.tracked)) has[k] = true
       else part[k] = 0
     }
-    if (t.tracked.iceTime) iceGames += t.summary.gamesPlayed
     Object.assign(sum, addSummary(sum, part))
   }
-  return { sum, has, iceGames }
+  return { sum, has }
 }
 
-/** Istid vises som snitt per kamp (games = antall kamper verdien gjelder). */
-const show = (c: Col, v: number, tracked: boolean, games = 1) => {
+/** Istid vises som min:sek (summert i totaler, per kamp i kamplisten). */
+const show = (c: Col, v: number, tracked: boolean) => {
   if (!tracked) return '–'
-  if (c.key === 'totalSecondsPlayed') return games > 0 ? formatIceTime(v / games) : '–'
+  if (c.key === 'totalSecondsPlayed') return formatIceTime(v)
   return (c.fmt ?? String)(v)
 }
 
@@ -54,7 +52,7 @@ const COLS: Col[] = [
   { key: 'points', label: '+/−', title: 'Pluss/minus', fmt: plusMinus },
   { key: 'pim', label: 'UM', title: 'Utvisningsminutter' },
   { key: 'shots', label: 'S', title: 'Skudd' },
-  { key: 'totalSecondsPlayed', label: 'Istid', title: 'Snitt istid per kamp' },
+  { key: 'totalSecondsPlayed', label: 'Istid', title: 'Total istid (min:sek)' },
 ]
 
 function readUrlInput() {
@@ -111,7 +109,7 @@ export default function App() {
     () => data?.tournaments.filter((t) => fromSeason === 'all' || t.season === fromSeason) ?? [],
     [data, fromSeason],
   )
-  const { sum: total, has: totalHas, iceGames } = sumStats(visible)
+  const { sum: total, has: totalHas } = sumStats(visible)
   const matches = latestMatches(visible)
   const lastGoal = matches.find((m) => m.goalsScored > 0)
   const lastPoint = matches.find((m) => m.pts > 0)
@@ -139,7 +137,7 @@ export default function App() {
           </li>
           <li>
             «–» betyr at tallet ikke registreres i turneringen. Totalene for skudd, +/− og istid tar bare med
-            turneringene der de finnes. Istid i totaler og per turnering er snitt per kamp.
+            turneringene der de finnes. Istid vises som minutter:sekunder, summert i totaler og per turnering.
           </li>
         </ul>
         <h1 className="text-2xl font-bold">Spillerstatistikk ishockey</h1>
@@ -234,7 +232,7 @@ export default function App() {
             <section className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-8">
               {COLS.map((c) => (
                 <div key={c.key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-slate-900">
-                  <div className="text-2xl font-bold tabular-nums">{show(c, total[c.key], !!totalHas[c.key], iceGames)}</div>
+                  <div className="text-2xl font-bold tabular-nums">{show(c, total[c.key], !!totalHas[c.key])}</div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">{c.title}</div>
                 </div>
               ))}
@@ -261,13 +259,13 @@ export default function App() {
                   </thead>
                   <tbody>
                     {bySeason.map(([season, ts]) => {
-                      const { sum, has, iceGames } = sumStats(ts)
+                      const { sum, has } = sumStats(ts)
                       return [
                         <tr key={`s${season}`} className="bg-slate-100 font-semibold dark:bg-slate-800">
                           <td className="px-3 py-1.5">{seasonLabel(season)}</td>
                           {COLS.map((c) => (
                             <td key={c.key} className="px-2 py-1.5 text-right tabular-nums">
-                              {show(c, sum[c.key], !!has[c.key], iceGames)}
+                              {show(c, sum[c.key], !!has[c.key])}
                             </td>
                           ))}
                         </tr>,
@@ -291,7 +289,7 @@ export default function App() {
                               </td>
                               {COLS.map((c) => (
                                 <td key={c.key} className="px-2 py-1.5 text-right tabular-nums">
-                                  {show(c, t.summary[c.key], isTracked(c.key, t.tracked), t.summary.gamesPlayed)}
+                                  {show(c, t.summary[c.key], isTracked(c.key, t.tracked))}
                                 </td>
                               ))}
                             </tr>
