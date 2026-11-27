@@ -253,9 +253,10 @@ export default function App() {
               ))}
             </section>
 
-            <section className="mt-4 grid gap-3 sm:grid-cols-2">
+            <section className="mt-4 grid gap-3 sm:grid-cols-3">
               <LastEvent label="Siste mål" match={lastGoal} />
               <LastEvent label="Siste poeng" match={lastPoint} />
+              <LastEvent label="Siste kamp" match={matches[0]} />
             </section>
 
             <section className="mt-8">
