@@ -69,7 +69,7 @@ const COLUMNS: {
   { key: 'pim', label: 'UM', title: 'Utvisningsminutter totalt', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.totals.pim) },
   { key: 'lastGoal', label: 'Siste mål', title: 'Siste mål i alle turneringer', descFirst: false, value: (r) => (r.error ? null : r.lastGoal?.matchDate ?? '') },
   { key: 'days', label: 'Dager', title: 'Dager siden siste mål', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.lastGoal ? daysSince(r.lastGoal.matchDate) : Infinity) },
-  { key: 'since', label: 'Kamper siden', title: 'Kamper spilt etter siste mål (alle turneringer)', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.matchesSince) },
+  { key: 'since', label: 'K siden', title: 'Kamper spilt etter siste mål (alle turneringer)', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.matchesSince) },
   { key: 'lastMatch', label: 'Siste kamp', title: 'Siste kamp i alle turneringer', descFirst: true, value: (r) => r.lastMatch?.matchDate ?? null },
 ]
 
@@ -180,7 +180,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         https://live.hockey.no/statistics/players?seasonId=201059&amp;tournamentId=441144, eller bare tournamentId. Siste
         mål og siste kamp regnes på tvers av alle spillerens turneringer frem til i dag (data fra august 2023). Aktiv =
         spilt kamp siden {formatDate(seasonStart())}. Turneringen brukes bare til å finne årgangen; K, M, A, P og UM er totaler for alle turneringer frem til i dag. Klikk på en
-        kolonneoverskrift for å sortere.
+        kolonneoverskrift for å sortere. Hold musen over en dato for å se turneringen.
       </p>
       <form onSubmit={run} className="mt-3 flex gap-2">
         <input
@@ -247,35 +247,21 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
                         {r.player.firstName} {r.player.lastName}
                       </button>
                     </td>
-                    <td className="max-w-56 px-2 py-1.5 text-slate-500 dark:text-slate-400">{teamOf(r)}</td>
+                    <td className="max-w-48 px-2 py-1.5 text-slate-500 dark:text-slate-400">{teamOf(r)}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.gp}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.goals}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.assists}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.pts}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? "" : r.totals.pim}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">
-                      {r.error ? (
-                        <span className="text-red-500">feil</span>
-                      ) : r.lastGoal ? (
-                        <>
-                          {formatDate(r.lastGoal.matchDate)}{' '}
-                          <span className="text-slate-400">{r.lastGoal.tournamentName}</span>
-                        </>
-                      ) : (
-                        'aldri'
-                      )}
+                    <td className="whitespace-nowrap px-2 py-1.5" title={r.lastGoal?.tournamentName}>
+                      {r.error ? <span className="text-red-500">feil</span> : r.lastGoal ? formatDate(r.lastGoal.matchDate) : 'aldri'}
                     </td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       {r.lastGoal ? daysSince(r.lastGoal.matchDate) : '–'}
                     </td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? '' : r.matchesSince}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">
-                      {r.lastMatch && (
-                        <>
-                          {formatDate(r.lastMatch.matchDate)}{' '}
-                          <span className="text-slate-400">{r.lastMatch.tournamentName}</span>
-                        </>
-                      )}
+                    <td className="whitespace-nowrap px-2 py-1.5" title={r.lastMatch?.tournamentName}>
+                      {r.lastMatch && formatDate(r.lastMatch.matchDate)}
                     </td>
                   </tr>
                 ))}
