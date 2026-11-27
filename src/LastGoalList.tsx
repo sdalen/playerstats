@@ -185,11 +185,12 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         </button>
       </div>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Lim inn en statistikklenke fra live.hockey.no, f.eks.
-        https://live.hockey.no/statistics/players?seasonId=201059&amp;tournamentId=441144, eller bare tournamentId. Siste
-        mål og siste kamp regnes på tvers av alle spillerens turneringer frem til i dag (data fra august 2023). Aktiv =
-        spilt kamp siden {formatDate(seasonStart())}. Turneringen brukes bare til å finne årgangen; K, M, A, P og UM er totaler for alle turneringer frem til i dag. Klikk på en
-        kolonneoverskrift for å sortere. Hold musen over en dato for å se turneringen.
+        Lim inn en statistikklenke fra live.hockey.no for en turnering i årgangen du vil se, f.eks.
+        https://live.hockey.no/statistics/players?seasonId=201059&amp;tournamentId=441144 (eller bare tournamentId).
+        Turneringen brukes til å finne spillerne i årgangen. Deretter hentes alle kampene til hver spiller, i alle
+        turneringer frem til i dag (data fra august 2023), og alle tallene i tabellen regnes ut fra dem. Aktiv = spilt
+        kamp siden {formatDate(seasonStart())}. Klikk på en kolonneoverskrift for å sortere, og hold musen over en dato
+        for å se turneringen.
       </p>
       <form onSubmit={run} className="mt-3 flex gap-2">
         <input
