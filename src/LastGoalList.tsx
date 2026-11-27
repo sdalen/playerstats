@@ -15,6 +15,7 @@ interface Row {
   player: TournamentPlayer
   lastGoal?: Match
   matchesSince: number
+  totalMatches: number
   lastMatch?: Match
   active: boolean
   error?: boolean
@@ -43,6 +44,7 @@ type SortKey =
   | 'lastGoal'
   | 'days'
   | 'since'
+  | 'total'
   | 'lastMatch'
 
 const n = (v?: number) => v ?? 0
@@ -59,14 +61,15 @@ const COLUMNS: {
   { key: 'active', label: 'Aktiv', align: 'center', descFirst: true, value: (r) => (r.active ? 1 : 0) },
   { key: 'name', label: 'Spiller', descFirst: false, value: (r) => `${r.player.firstName} ${r.player.lastName}` },
   { key: 'team', label: 'Lag', descFirst: false, value: (r) => r.player.teamName ?? '' },
-  { key: 'gp', label: 'K', title: 'Kamper i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.gamesPlayed) },
+  { key: 'gp', label: 'K', title: 'Kamper i denne turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.gamesPlayed) },
   { key: 'goals', label: 'M', title: 'Mål i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.goalsScored) },
   { key: 'assists', label: 'A', title: 'Assist i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.assists) },
   { key: 'pts', label: 'P', title: 'Poeng i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.pts) },
   { key: 'pim', label: 'UM', title: 'Utvisningsminutter i turneringen', align: 'right', descFirst: true, value: (r) => n(r.player.pim) },
   { key: 'lastGoal', label: 'Siste mål', title: 'Siste mål i alle turneringer', descFirst: false, value: (r) => (r.error ? null : r.lastGoal?.matchDate ?? '') },
   { key: 'days', label: 'Dager', title: 'Dager siden siste mål', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.lastGoal ? daysSince(r.lastGoal.matchDate) : Infinity) },
-  { key: 'since', label: 'Kamper siden', title: 'Kamper spilt etter siste mål', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.matchesSince) },
+  { key: 'since', label: 'Kamper siden', title: 'Kamper spilt etter siste mål (alle turneringer)', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.matchesSince) },
+  { key: 'total', label: 'K totalt', title: 'Alle kamper frem til i dag (alle turneringer, fra 2023)', align: 'right', descFirst: true, value: (r) => (r.error ? null : r.totalMatches) },
   { key: 'lastMatch', label: 'Siste kamp', title: 'Siste kamp i alle turneringer', descFirst: true, value: (r) => r.lastMatch?.matchDate ?? null },
 ]
 
@@ -104,11 +107,12 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
               player,
               lastGoal: gi >= 0 ? ms[gi] : undefined,
               matchesSince: gi >= 0 ? gi : ms.length,
+              totalMatches: ms.length,
               lastMatch: ms[0],
               active: !!ms[0] && ms[0].matchDate.slice(0, 10) >= start,
             })
           } catch {
-            result.push({ player, matchesSince: 0, active: false, error: true })
+            result.push({ player, matchesSince: 0, totalMatches: 0, active: false, error: true })
           }
           setProgress({ done: result.length, total: players.length })
         }
@@ -166,7 +170,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
         Lim inn en statistikklenke fra live.hockey.no, f.eks.
         https://live.hockey.no/statistics/players?seasonId=201059&amp;tournamentId=441144, eller bare tournamentId. Siste
         mål og siste kamp regnes på tvers av alle spillerens turneringer frem til i dag (data fra august 2023). Aktiv =
-        spilt kamp siden {formatDate(seasonStart())}. K, M, A, P og UM gjelder bare den valgte turneringen. Klikk på en
+        spilt kamp siden {formatDate(seasonStart())}. K, M, A, P og UM gjelder bare den valgte turneringen; K totalt er alle kamper. Klikk på en
         kolonneoverskrift for å sortere.
       </p>
       <form onSubmit={run} className="mt-3 flex gap-2">
@@ -256,6 +260,7 @@ export default function LastGoalList({ onSelectPlayer }: { onSelectPlayer: (play
                       {r.lastGoal ? daysSince(r.lastGoal.matchDate) : '–'}
                     </td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? '' : r.matchesSince}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{r.error ? '' : r.totalMatches}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">
                       {r.lastMatch && (
                         <>
