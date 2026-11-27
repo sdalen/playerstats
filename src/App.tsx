@@ -6,21 +6,44 @@ import {
   fetchPlayer,
   formatDate,
   formatTime,
+  isTracked,
   latestMatches,
   matchUrl,
   parsePlayerInput,
   playerUrl,
+  plusMinus,
   seasonLabel,
   type Match,
   type PlayerData,
   type Summary,
+  type TournamentStats,
 } from './hockey'
 
-const COLS: { key: keyof Summary; label: string; title: string; fmt?: (v: number) => string }[] = [
+type Col = { key: keyof Summary; label: string; title: string; fmt?: (v: number) => string }
+
+/** Summerer turneringer; +/− og skudd telles bare fra turneringer der de registreres. */
+function sumStats(ts: TournamentStats[]) {
+  const sum = emptySummary()
+  const has = {} as Record<keyof Summary, boolean>
+  for (const t of ts) {
+    const part = { ...t.summary }
+    for (const k of Object.keys(part) as (keyof Summary)[]) {
+      if (isTracked(k, t.tracked)) has[k] = true
+      else part[k] = 0
+    }
+    Object.assign(sum, addSummary(sum, part))
+  }
+  return { sum, has }
+}
+
+const show = (c: Col, v: number, tracked: boolean) => (tracked ? (c.fmt ?? String)(v) : '–')
+
+const COLS: Col[] = [
   { key: 'gamesPlayed', label: 'K', title: 'Kamper' },
   { key: 'goalsScored', label: 'M', title: 'Mål' },
   { key: 'assists', label: 'A', title: 'Assist' },
   { key: 'pts', label: 'P', title: 'Poeng' },
+  { key: 'points', label: '+/−', title: 'Pluss/minus', fmt: plusMinus },
   { key: 'pim', label: 'UM', title: 'Utvisningsminutter' },
   { key: 'shots', label: 'S', title: 'Skudd' },
 ]
@@ -79,7 +102,7 @@ export default function App() {
     () => data?.tournaments.filter((t) => fromSeason === 'all' || t.season === fromSeason) ?? [],
     [data, fromSeason],
   )
-  const total = visible.reduce((acc, t) => addSummary(acc, t.summary), emptySummary())
+  const { sum: total, has: totalHas } = sumStats(visible)
   const matches = latestMatches(visible)
   const lastGoal = matches.find((m) => m.goalsScored > 0)
   const lastPoint = matches.find((m) => m.pts > 0)
@@ -95,10 +118,21 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          Dataene sier ingenting om spilletid (istid) per kamp. En kamp telles som spilt når spilleren står oppført i
-          kamptroppen.
-        </p>
+        <ul className="mb-4 list-disc space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 pl-7 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <li>
+            Dataene sier ingenting om spilletid (istid) per kamp. En kamp telles som spilt når spilleren står oppført i
+            kamptroppen.
+          </li>
+          <li>Skudd registreres bare fra U16 og eldre.</li>
+          <li>
+            +/− registreres bare i turneringer med Wisehockey-sporing (typisk EHL, U20 Elite og U18 Elite). I andre
+            turneringer er tallet ikke pålitelig og vises ikke.
+          </li>
+          <li>
+            «–» betyr at tallet ikke registreres i turneringen. Totalene for skudd og +/− summerer bare turneringene der de
+            finnes.
+          </li>
+        </ul>
         <h1 className="text-2xl font-bold">Spillerstatistikk ishockey</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Lim inn en playerId eller en spillerlenke fra live.hockey.no.
@@ -188,10 +222,10 @@ export default function App() {
               </label>
             </header>
 
-            <section className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
+            <section className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-7">
               {COLS.map((c) => (
                 <div key={c.key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-slate-900">
-                  <div className="text-2xl font-bold tabular-nums">{(c.fmt ?? String)(total[c.key])}</div>
+                  <div className="text-2xl font-bold tabular-nums">{show(c, total[c.key], !!totalHas[c.key])}</div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">{c.title}</div>
                 </div>
               ))}
@@ -218,13 +252,13 @@ export default function App() {
                   </thead>
                   <tbody>
                     {bySeason.map(([season, ts]) => {
-                      const sum = ts.reduce((acc, t) => addSummary(acc, t.summary), emptySummary())
+                      const { sum, has } = sumStats(ts)
                       return [
                         <tr key={`s${season}`} className="bg-slate-100 font-semibold dark:bg-slate-800">
                           <td className="px-3 py-1.5">{seasonLabel(season)}</td>
                           {COLS.map((c) => (
                             <td key={c.key} className="px-2 py-1.5 text-right tabular-nums">
-                              {(c.fmt ?? String)(sum[c.key])}
+                              {show(c, sum[c.key], !!has[c.key])}
                             </td>
                           ))}
                         </tr>,
@@ -248,7 +282,7 @@ export default function App() {
                               </td>
                               {COLS.map((c) => (
                                 <td key={c.key} className="px-2 py-1.5 text-right tabular-nums">
-                                  {(c.fmt ?? String)(t.summary[c.key])}
+                                  {show(c, t.summary[c.key], isTracked(c.key, t.tracked))}
                                 </td>
                               ))}
                             </tr>
@@ -289,14 +323,18 @@ export default function App() {
                           </a>
                         </td>
                         <td className="px-3 py-1.5 text-slate-500 dark:text-slate-400">{m.tournamentName}</td>
-                        {COLS.slice(1).map((c) => (
-                          <td
-                            key={c.key}
-                            className={`px-2 py-1.5 text-right tabular-nums ${m[c.key as keyof Match] ? 'font-semibold' : 'text-slate-400'}`}
-                          >
-                            {(c.fmt ?? String)(m[c.key as keyof Match] as number)}
-                          </td>
-                        ))}
+                        {COLS.slice(1).map((c) => {
+                          const v = m[c.key as keyof Match] as number
+                          const tracked = isTracked(c.key, m.tracked)
+                          return (
+                            <td
+                              key={c.key}
+                              className={`px-2 py-1.5 text-right tabular-nums ${tracked && v ? 'font-semibold' : 'text-slate-400'}`}
+                            >
+                              {show(c, v, tracked)}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>

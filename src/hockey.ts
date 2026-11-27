@@ -37,6 +37,13 @@ export interface Match {
   points: number
   pim: number
   shots: number
+  tracked: Tracked
+}
+
+/** Hvilke tall som faktisk registreres i turneringen. */
+export interface Tracked {
+  plusMinus: boolean // kun med Wisehockey-sporing (typisk EHL, U20/U18 Elite)
+  shots: boolean // fra U16 og eldre
 }
 
 export interface TournamentStats {
@@ -44,6 +51,20 @@ export interface TournamentStats {
   season: number // startår, f.eks. 2026 → «2026/27»
   summary: Summary
   matches: Match[]
+  tracked: Tracked
+}
+
+/** U-alder fra turneringsnavn («U14 avd A» → 14). Ingen U-alder (EHL, senior) → null. */
+export const ageClass = (name: string) => {
+  const m = name.match(/\bU\s?(\d{1,2})\b/i)
+  return m ? Number(m[1]) : null
+}
+
+/** Om et felt er registrert i turneringen; ellers vises «–». */
+export function isTracked(key: keyof Summary, tracked: Tracked) {
+  if (key === 'points') return tracked.plusMinus
+  if (key === 'shots') return tracked.shots
+  return true
 }
 
 export interface PlayerInfo {
@@ -139,13 +160,21 @@ export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise
   const results = await Promise.all(
     (all ?? []).map(async (t) => {
       try {
-        const res = await get<{ tournamentSummary?: Partial<Summary>; matches?: Match[] }>(
-          `wise/tournaments/${t.tournamentId}/players/${playerId}/matches/statistics`,
-        )
+        const res = await get<{
+          tournamentSummary?: Partial<Summary>
+          matches?: Match[]
+          totalMatchesWithWisehockeyData?: number
+        }>(`wise/tournaments/${t.tournamentId}/players/${playerId}/matches/statistics`)
         const summary = toSummary(res?.tournamentSummary)
         if (summary.gamesPlayed === 0) return null
+        const age = ageClass(t.tournamentName)
+        const tracked: Tracked = {
+          plusMinus: n(res?.totalMatchesWithWisehockeyData) > 0,
+          shots: age === null || age >= 16,
+        }
         const matches = (res?.matches ?? []).map((m) => ({
           ...m,
+          tracked,
           goalsScored: n(m.goalsScored),
           assists: n(m.assists),
           pts: n(m.pts),
@@ -153,7 +182,7 @@ export async function fetchPlayer(playerId: string, orgIdHint?: string): Promise
           pim: n(m.pim),
           shots: n(m.shots),
         }))
-        return { tournament: t, season: seasonOf(t.startDate), summary, matches } satisfies TournamentStats
+        return { tournament: t, season: seasonOf(t.startDate), summary, matches, tracked } satisfies TournamentStats
       } catch {
         return null
       }
