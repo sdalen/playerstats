@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react'
+
+// Lokalt verktøy: lastes kun i dev (npm run dev), og tas ikke med i produksjonsbygget.
+const LastGoalList = import.meta.env.DEV ? lazy(() => import('./LastGoalList')) : null
 import {
   addSummary,
   daysSince,
@@ -186,6 +189,18 @@ export default function App() {
             {loading ? 'Henter…' : 'Hent'}
           </button>
         </form>
+
+        {LastGoalList && (
+          <Suspense fallback={null}>
+            <LastGoalList
+              onSelectPlayer={(id) => {
+                setInput(id)
+                void load(id)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            />
+          </Suspense>
+        )}
 
         {error && (
           <p className="mt-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">

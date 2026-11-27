@@ -252,3 +252,31 @@ export const formatIceTime = (seconds: number) => {
   const s = Math.round(seconds)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
+
+// --- Lokale verktøy (kun brukt i dev) ---
+
+export interface TournamentPlayer {
+  personId: number
+  firstName: string
+  lastName: string
+  teamName?: string
+  gamesPlayed?: number
+  goalsScored?: number
+}
+
+/** Alle spillere i en turnering (statistikklisten på live.hockey.no). */
+export const fetchTournamentPlayers = (tournamentId: string) =>
+  get<TournamentPlayer[]>(`wise/tournaments/${tournamentId}/players/statistics`)
+
+/** Alle kamper for en spiller på tvers av turneringer, nyeste først. */
+export async function fetchPlayerMatches(playerId: number): Promise<Match[]> {
+  const ms = await get<Match[]>(`icehockey/Player/${playerId}?numberMatches=1000`)
+  return [...(ms ?? [])].sort((a, b) => b.matchDate.localeCompare(a.matchDate))
+}
+
+/** Godtar tournamentId eller en live.hockey.no-lenke med tournamentId=. */
+export function parseTournamentInput(input: string): string | undefined {
+  const s = input.trim()
+  if (/^\d+$/.test(s)) return s
+  return s.match(/tournamentId=(\d+)/)?.[1]
+}
